@@ -4,7 +4,7 @@ A small python 3 script that parses iloveskydiving.org and creates a html-site w
 
 ## Installation
 
-import beautifulsoup4
+import beautifulsoup4  
 import urllib3
 
 ## Usage
