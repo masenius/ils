@@ -11,5 +11,5 @@ import urllib3
 
 python ils.py [-r] -o index.htm
 
--o file - outfile
+-o file - outfile  
 -r - rebuild index
