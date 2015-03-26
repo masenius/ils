@@ -180,7 +180,7 @@ def generate_site(path):
 
     video_list.sort(key=lambda x: x.date, reverse=True)
 
-    f = open('case.inc', 'r')
+    f = open('index.inc', 'r')
     html = f.read()
     f.close()
 
