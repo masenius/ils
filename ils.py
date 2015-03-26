@@ -19,8 +19,7 @@ class Video:
     def __init__(self, url):
         self.url = url
 
-
-def parse(self, http=None):
+    def parse(self, http=None):
         if http is None:
             http = urllib3.PoolManager()
         r = http.request('GET', self.url, headers={'User-Agent': "Chrome"})
