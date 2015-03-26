@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-#System
+# System
 import urllib3
 import pickle
 import os.path
@@ -19,7 +19,8 @@ class Video:
     def __init__(self, url):
         self.url = url
 
-    def parse(self, http=None):
+
+def parse(self, http=None):
         if http is None:
             http = urllib3.PoolManager()
         r = http.request('GET', self.url, headers={'User-Agent': "Chrome"})
@@ -46,7 +47,7 @@ class Video:
 def index(redo=False):
     http = urllib3.PoolManager(100)
 
-    #Threading
+    # Threading
     num_video_threads = 100
     video_queue = Queue()
 
@@ -89,7 +90,7 @@ def index(redo=False):
             url = link.get("href")
             print("Video for consideration: " + url)
             if url not in video_url_list:
-                if not '/photos/' in url:
+                if '/photos/' not in url:
                     video_url_list_tmp.append(url)
             else:
                 done = True
@@ -100,7 +101,7 @@ def index(redo=False):
         if done is not True:
             i += 1
             r = http.request(
-                'GET', 'http://iloveskydiving.org/page/' + str(i+1) + '/',
+                'GET', 'http://iloveskydiving.org/page/' + str(i + 1) + '/',
                 headers={'User-Agent': "Magic Browser"})
 
     print(str(len(video_url_list_new)) + " new videos.")
@@ -192,8 +193,7 @@ def generate_site(path):
         rows += '<td class="tags">' + ' '.join(video.tags) + '</td>\n'
         rows += '</tr>\n'
 
-    table = '<table>\n' + '<tbody class="list">\n'
-    + rows + '</tbody>\n' + '</table>'
+    table = '<table>\n' + '<tbody class="list">\n' + rows + '</tbody>\n' + '</table>'
 
     html = html.replace('&replace&', table)
 
