@@ -21,6 +21,9 @@
   <button class="sort" data-sort="shares">
     Sort by shares
   </button>
+  <a class="button" target="_blank" href="http://iloveskydiving.org/">
+    Go to iLoveSkydiving
+  </a>
   &replace&
  </div>
  <script src="http://listjs.com/no-cdn/list.js"></script>

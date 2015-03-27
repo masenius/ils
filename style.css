@@ -66,3 +66,16 @@ input:focus {
   top:-4px;
   right:-5px;
 }
+.button {
+  font: 14px Arial;
+  text-decoration: none;
+  background-color: #FFA924;
+  border-radius: 6px;
+  color: #fff;
+  padding: 8px 8px;
+  border: none;
+}
+.button:hover {
+  text-decoration: none;
+  background-color: #FF9B00;
+}
