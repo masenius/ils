@@ -16,6 +16,7 @@ input:focus {
   border-color:#aaa;
 }
 .sort {
+  font: 13px Arial;
   padding:8px 30px;
   border-radius: 6px;
   border:none;
@@ -23,7 +24,6 @@ input:focus {
   color:#fff;
   text-decoration: none;
   background-color: #28a8e0;
-  height:30px;
 }
 .sort:hover {
   text-decoration: none;
@@ -67,12 +67,12 @@ input:focus {
   right:-5px;
 }
 .button {
-  font: 14px Arial;
+  font: 13px Arial;
   text-decoration: none;
   background-color: #FFA924;
   border-radius: 6px;
   color: #fff;
-  padding: 8px 8px;
+  padding: 8px 30px;
   border: none;
 }
 .button:hover {
