@@ -11,6 +11,7 @@ from threading import Thread
 import json
 import sys
 import getopt
+import time
 
 urllib3.disable_warnings()
 
@@ -22,25 +23,86 @@ class Video:
     def parse(self, http=None):
         if http is None:
             http = urllib3.PoolManager()
-        r = http.request('GET', self.url, headers={'User-Agent': "Chrome"})
+
+        done = False
+        tries = 0
+        while not done and tries < 3:
+            try:
+                r = http.request('GET',  self.url, headers={'User-Agent': "Chrome"})
+                done = True
+            except:
+                print("Request timed out. Trying again...")
+                time.sleep(60)
+                tries = tries + 1
+
         if (r.status == 200):
             s = BeautifulSoup(r.data)
 
-            self.title = s.title.text.split(' - ')[0]
-            for item in s.find_all('div', class_='bold'):
-                if "Posted" in item.text:
-                    self.date = datetime.strptime(item.next_sibling.text, '%B %d, %Y')
-                if "Source" in item.text:
-                    self.video_url = item.next_sibling.text
-            self.tags = []
-            for item in (s.find_all('ul', class_='post_tags')):
-                for tag in item.find_all('a'):
-                    self.tags.append(tag.text)
+            # self.title = s.title.text.split(' - ')[0]
+            # for item in s.find_all('div', class_='bold'):
+            #     if "Posted" in item.text:
+            #         self.date = datetime.strptime(item.next_sibling.text, '%B %d, %Y')
+            #     if "Source" in item.text:
+            #         self.video_url = item.next_sibling.text
+            # self.tags = []
+            # for item in (s.find_all('ul', class_='post_tags')):
+            #     for tag in item.find_all('a'):
+            #         self.tags.append(tag.text)
+
+            for item in s.find_all('h2'):
+                self.title = item.text
+
+            for item in s.find_all('div', class_='description'):
+                self.description = item.text
+
+            for item in s.find_all('iframe'):
+                self.video_url = item.get('data-src').split('?')[0]
+
+            self.date = datetime.today()
 
             self.shares = 0
             self.delete = False
         else:
             self.delete = True
+
+
+def findNewVideos():
+    r = http.request(
+        'GET', 'http://iloveskydiving.org/',
+        headers={'User-Agent': "Magic Browser"})
+    i = 0
+    done = False
+
+    while (done is not True and r.status != 404):
+        s = BeautifulSoup(r.data)
+        href = s.find_all("a", class_="moretag")
+        video_url_list_tmp = []
+
+        for link in href:
+            url = link.get("href")
+            print("Video for consideration: " + url)
+            if url not in video_url_list:
+                if '/photos/' not in url:
+                    video_url_list_tmp.append(url)
+            else:
+                done = True
+                break
+
+        video_url_list_new = video_url_list_new + video_url_list_tmp
+
+        if done is not True:
+            i += 1
+            r = http.request(
+                'GET', 'http://iloveskydiving.org/page/' + str(i + 1) + '/',
+                headers={'User-Agent': "Magic Browser"})
+
+
+def parseList():
+    video_url_list_new = []
+    with open('default-vids.txt', 'r') as f:
+        for url in f:
+            video_url_list_new.append(url.strip())
+    return video_url_list_new
 
 
 def index(redo=False):
@@ -74,56 +136,32 @@ def index(redo=False):
         for video in video_list:
             video_url_list.append(video.url)
 
-    r = http.request(
-        'GET', 'http://iloveskydiving.org/',
-        headers={'User-Agent': "Magic Browser"})
-    i = 0
-    done = False
-
-    while (done is not True and r.status != 404):
-        s = BeautifulSoup(r.data)
-        href = s.find_all("a", class_="moretag")
-        video_url_list_tmp = []
-
-        for link in href:
-            url = link.get("href")
-            print("Video for consideration: " + url)
-            if url not in video_url_list:
-                if '/photos/' not in url:
-                    video_url_list_tmp.append(url)
-            else:
-                done = True
-                break
-
-        video_url_list_new = video_url_list_new + video_url_list_tmp
-
-        if done is not True:
-            i += 1
-            r = http.request(
-                'GET', 'http://iloveskydiving.org/page/' + str(i + 1) + '/',
-                headers={'User-Agent': "Magic Browser"})
+    # findNewVideos()
+    video_url_list_new = parseList()
 
     print(str(len(video_url_list_new)) + " new videos.")
 
-    i = 0
-    for url in video_url_list_new:
-        video = Video(url)
-        video_queue.put(video)
-        video_list.insert(i, video)
-        i += 1
+    if len(video_url_list_new) > 0:
 
-    video_queue.join()
+        i = 0
+        for url in video_url_list_new:
+            video = Video(url)
+            video_queue.put(video)
+            video_list.insert(i, video)
+            i += 1
 
-    for video in video_list:
-        if video.delete:
-            video_list.remove(video)
+        video_queue.join()
+
+        for video in video_list:
+            if video.delete:
+                video_list.remove(video)
+
+        f = open('videos.p', 'wb')
+        pickle.dump(video_list, f)
+        f.close()
 
     print("Latest video: " + video_list[0].url)
     print("Total videos indexed: " + str(len(video_list)))
-
-    f = open('videos.p', 'wb')
-    pickle.dump(video_list, f)
-    f.close()
 
 
 def update_shares():
@@ -189,7 +227,7 @@ def generate_site(path):
         rows += '<td class="date"><div style="width: 100px" >' + video.date.strftime("%Y-%m-%d") + '</div></td>\n'
         rows += '<td class="shares">' + str(video.shares) + '</td>\n'
         rows += '<td class="title"><a href=' + video.url + ' target="_blank">' + video.title + '</a></td>\n'
-        rows += '<td class="tags">' + ' '.join(video.tags) + '</td>\n'
+        rows += '<td class="description">' + video.description + '</td>\n'
         rows += '</tr>\n'
 
     table = '<table>\n' + '<tbody class="list">\n' + rows + '</tbody>\n' + '</table>'
