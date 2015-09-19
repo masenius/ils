@@ -237,15 +237,15 @@ def update_shares():
         except:
             i = i + 1
 
-    if os.path.isfile('default.p'):
-        f = open('default.p', 'rb')
+    if os.path.isfile('ils.p'):
+        f = open('ils.p', 'rb')
         ils_video_list = pickle.load(f)
         f.close()
 
-    for v in video_list:
-        for u in ils_video_list:
-            if v.title == u.title:
-                v.shares = int(v.shares) + int(u.shares)
+        for v in video_list:
+            for u in ils_video_list:
+                if v.title == u.title:
+                    v.shares = int(v.shares) + int(u.shares)
 
     print ("Info: " + str(i) + " video urls could not be found.")
 
