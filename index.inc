@@ -1,6 +1,6 @@
 <html>
 <head>
-<title>iLoveSkydiving - A fan page</title>
+<title>jointheteem - a fan page</title>
 <link rel="stylesheet" type="text/css" href="style.css">
 <script>
   (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
@@ -21,8 +21,8 @@
   <button class="sort" data-sort="shares">
     Sort by shares
   </button>
-  <a class="button" target="_blank" href="http://iloveskydiving.org/">
-    Go to iLoveSkydiving
+  <a class="button" target="_blank" href="http://jointheteem.com/">
+    Go to Join the teem
   </a>
   &replace&
  </div>

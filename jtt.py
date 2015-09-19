@@ -6,6 +6,7 @@ import pickle
 import os.path
 from bs4 import BeautifulSoup
 from datetime import datetime
+from datetime import timedelta
 from queue import Queue
 from threading import Thread
 import json
@@ -36,18 +37,7 @@ class Video:
                 tries = tries + 1
 
         if (r.status == 200):
-            s = BeautifulSoup(r.data)
-
-            # self.title = s.title.text.split(' - ')[0]
-            # for item in s.find_all('div', class_='bold'):
-            #     if "Posted" in item.text:
-            #         self.date = datetime.strptime(item.next_sibling.text, '%B %d, %Y')
-            #     if "Source" in item.text:
-            #         self.video_url = item.next_sibling.text
-            # self.tags = []
-            # for item in (s.find_all('ul', class_='post_tags')):
-            #     for tag in item.find_all('a'):
-            #         self.tags.append(tag.text)
+            s = BeautifulSoup(r.data, "lxml")
 
             for item in s.find_all('h2'):
                 self.title = item.text
@@ -56,9 +46,31 @@ class Video:
                 self.description = item.text
 
             for item in s.find_all('iframe'):
-                self.video_url = item.get('data-src').split('?')[0]
+                video_url = item.get('data-src').split('?')[0]
+                if 'youtube' in video_url:
+                    self.video_url = 'https://www.youtube.com/watch?v=' + video_url.split('/')[-1]
+                elif 'vimeo' in video_url:
+                    self.video_url = 'https://vimeo.com/' + video_url.split('/')[-1]
+                else:
+                    self.video_url = 'http:' + video_url
 
-            self.date = datetime.today()
+            for item in s.find_all('div', class_="small-info"):
+                datesrc = item.text.split(": ")[1]
+                for d in datesrc.split():
+                    if d.isdigit():
+                        number = int(d)
+                if "year" in datesrc:
+                    self.date = datetime.today() - timedelta(days=365*number)
+                elif "month" in datesrc:
+                    self.date = datetime.today() - timedelta(days=30*number)
+                elif "week" in datesrc:
+                    self.date = datetime.today() - timedelta(weeks=number)
+                elif "day" in datesrc:
+                    self.date = datetime.today() - timedelta(days=number)
+                elif "hour" in datesrc:
+                    self.date = datetime.today() - timedelta(hours=number)
+                else:
+                    self.date = datetime.today()
 
             self.shares = 0
             self.delete = False
@@ -66,40 +78,29 @@ class Video:
             self.delete = True
 
 
-def findNewVideos():
+def findNewVideos(video_url_list):
+    http = urllib3.PoolManager()
+    base_url = 'http://jointheteem.com'
     r = http.request(
-        'GET', 'http://iloveskydiving.org/',
+        'GET', base_url,
         headers={'User-Agent': "Magic Browser"})
-    i = 0
-    done = False
 
-    while (done is not True and r.status != 404):
-        s = BeautifulSoup(r.data)
-        href = s.find_all("a", class_="moretag")
-        video_url_list_tmp = []
-
-        for link in href:
-            url = link.get("href")
-            print("Video for consideration: " + url)
-            if url not in video_url_list:
-                if '/photos/' not in url:
-                    video_url_list_tmp.append(url)
-            else:
-                done = True
-                break
-
-        video_url_list_new = video_url_list_new + video_url_list_tmp
-
-        if done is not True:
-            i += 1
-            r = http.request(
-                'GET', 'http://iloveskydiving.org/page/' + str(i + 1) + '/',
-                headers={'User-Agent': "Magic Browser"})
-
-
-def parseList():
+    s = BeautifulSoup(r.data, "lxml")
+    href = s.find_all("a", class_="thumb")
     video_url_list_new = []
-    with open('default-vids.txt', 'r') as f:
+
+    print (str(len(href)) + " videos for considerration.")
+    for link in href:
+        url = base_url + link.get("href")
+        if url not in video_url_list:
+            video_url_list_new.append(url)
+
+    return video_url_list_new
+
+
+def parseList(file):
+    video_url_list_new = []
+    with open(file, 'r') as f:
         for url in f:
             video_url_list_new.append(url.strip())
     return video_url_list_new
@@ -135,9 +136,10 @@ def index(redo=False):
 
         for video in video_list:
             video_url_list.append(video.url)
+    else:
+        video_url_list_new = parseList('default')
 
-    # findNewVideos()
-    video_url_list_new = parseList()
+    video_url_list_new = video_url_list_new + findNewVideos(video_url_list)
 
     print(str(len(video_url_list_new)) + " new videos.")
 
@@ -155,6 +157,16 @@ def index(redo=False):
         for video in video_list:
             if video.delete:
                 video_list.remove(video)
+
+        if redo and os.path.isfile('ils.p'):
+            f = open('ils.p', 'rb')
+            ils_video_list = pickle.load(f)
+            f.close()
+
+            for v in video_list:
+                for u in ils_video_list:
+                    if v.title == u.title:
+                        v.date = u.date
 
         f = open('videos.p', 'wb')
         pickle.dump(video_list, f)
@@ -174,33 +186,68 @@ def update_shares():
         video_list = pickle.load(f)
         f.close()
 
-    query_list = []
+    query_list_url = []
+    query_list_video_url = []
 
     i = 0
-    tmp_list = []
+    tmp_list_url = []
+    tmp_list_video_url = []
 
     while (i < len(video_list)):
-        tmp_list.append(video_list[i].url)
+        tmp_list_url.append(video_list[i].url)
+        tmp_list_video_url.append(video_list[i].video_url)
         if (i % 500 == 0 and i != 0 or i == len(video_list) - 1):
-            query_list.append(base_query + ','.join(tmp_list))
-            tmp_list = []
+            query_list_url.append(base_query + ','.join(tmp_list_url))
+            query_list_video_url.append(base_query + ','.join(tmp_list_video_url))
+            tmp_list_url = []
+            tmp_list_video_url = []
         i += 1
 
     http = urllib3.PoolManager()
 
     j = {}
-    for query in query_list:
+    for query in query_list_url:
         r = http.request('GET', query)
         if (r.status == 200):
             j.update(json.loads(r.data.decode('utf-8')))
         else:
             print(r.data)
 
+    k = {}
+    for query in query_list_video_url:
+        r = http.request('GET', query)
+        if (r.status == 200):
+            k.update(json.loads(r.data.decode('utf-8')))
+        else:
+            print(r.data)
+
+    i = 0
     for video in video_list:
         try:
             video.shares = j[video.url]['shares']
         except:
-            print("Warning: Could not find shares for: " + video.url)
+            i = i + 1
+
+    print ("Info: " + str(i) + " urls could not be found.")
+
+    i = 0
+    for video in video_list:
+        try:
+            video.shares = int(video.shares) + int(k[video.video_url]['shares'])
+        except:
+            i = i + 1
+
+    if os.path.isfile('default.p'):
+        f = open('default.p', 'rb')
+        ils_video_list = pickle.load(f)
+        f.close()
+
+    for v in video_list:
+        for u in ils_video_list:
+            if v.title == u.title:
+                v.shares = int(v.shares) + int(u.shares)
+
+    print ("Info: " + str(i) + " video urls could not be found.")
 
     f = open('videos.p', 'wb')
     pickle.dump(video_list, f)
